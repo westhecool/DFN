@@ -1,0 +1,106 @@
+<html>
+
+<head>
+    <script src="index.js"></script>
+</head>
+
+<body style="margin: 0; padding: 0; background-color: black; color: white; display: flex; justify-content: center;">
+    <video id="video" width="100%" height="100%" controls style="display: none;"></video>
+    <h1 id="status" style="display: none;">Downloading video...</h1>
+    <div id="videos" style="display: flex; flex-direction: column;">
+        <h1>Test videos (Blender Open Movies)</h1>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('984488482143a4383c97d4c9eeb03620c1f3ed699f441d9b0be66d0fb2b93379')">Agent 327：
+            Operation Barbershop [mN0zPOpADL4].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('1b6de9532a42bb71582e6af75292bbcad69c355fb31d46d395460c21448e96c8')">Big Buck Bunny
+            [YE7VzlLtp-4].mp4</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('50ce2df8bdc856558508810f3e8b4def67fc44c774ecf2b3ce8aecc0dd0139f3')">Caminandes 3：
+            Llamigos [SkVqJ1SGeL0].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('07ab66cb54226ad90e36ab2782933fd8997676e0afe461d35ae710d916f2bf2b')">CHARGE - Blender
+            Open Movie [UXqq0ZvbOnk].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('dcb39673c6a8cdfad462f79115b26b5d1f0da0a632f02a347012ef6dae567e6b')">Coffee Run -
+            Blender Open Movie [PVGeM40dABA].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('c59090d15ca67d06053157d3ad6c0e2cbbd96acf03bb2e02f21f1bb9d35fe8ac')">Cosmos
+            Laundromat
+            - First Cycle. Official Blender Foundation release. [Y-rmzh0PI3c].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('cc6a4a973d6f052e8aa1e331cfe35680ca058655e6a875df02f41eb0a9182c4b')">Elephants Dream
+            [TLkA0RELQ1g].mp4</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('3c3e853928b4928e94d042d497aae45a40e3691cd03a4c6b407b61e9b8ff5ead')">Glass Half -
+            Blender animated cartoon [lqiN98z6Dak].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('a7908e2269b17379267e1b5f1252f346359cd1fd304fcdee97810187e60d4399')">Project Gold -
+            Blender Stylized Rendering Showcase [nV_awXI9XJY].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('3ddd3ed5f7b04ef61d383764f7067308cd0cac7f12dd992cdae0bcb53ce9ea73')">Sintel - Open
+            Movie by Blender Foundation [eRsGyueVLvQ].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('de812f04d7da23ea85b7ad2a876b35c12e1bd130ff0b3c5dc7a66a62fa7afedf')">Spring - Blender
+            Open Movie [WhWc3b3KhnY].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('a99d88ad24c2f0563eb333e70f6ed50f8067fecb897a062b3c1ae0deb132c9d2')">Sprite Fright -
+            Blender Open Movie [_cMxraX_5RE].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('686427f6083488e63325b81d2506fbf6958f86785cb5dedd71e1c22fea274762')">Tears of Steel -
+            Blender VFX Open Movie [R6MlUcmOul8].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('2fa0496f8bfdec436249d5e9516f309ad6edb04a84503856426e4ed00c9eb940')">The Daily Dweebs
+            - 8K UHD Stereoscopic 3D [apiu3pTIwuY].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('2ed4dfeba3acad4992eab01d7559ca76a2272580e7cdb134ed83163323092748')">WING IT! -
+            Blender Open Movie [u9lj-c29dxI].webm</a>
+        <a style="cursor: pointer; text-decoration: underline;"
+            onclick="downloadVideo('190454d25f34b4f33cf645c731316a300f3c883452ae9d7a5b0d47edf3a12815')">＂Caminandes 2：
+            Gran Dillama＂ - Blender Animated Short [Z4C82eyhwgU].webm</a>
+    </div>
+    <script>
+        async function downloadVideo(fileHash) {
+            document.getElementById('videos').style.display = 'none';
+            document.getElementById('status').style.display = 'block';
+            const tracker = new DFNTracker('https://dfn-tracker.westhedev.xyz');
+            const peers = (await tracker.findPeers([fileHash]))[fileHash];
+            if (!peers[0]) {
+                alert('No peers found for this file.');
+                return;
+            }
+            // Ideally we would have connections to multiple peers or at least use a random one
+            console.log(`Found peer: ${peers[0]}`);
+            const client = new DFNClient(`https://${peers[0]}`);
+            const meta = await client.getFileMetadata(fileHash);
+            console.log(meta);
+            var data = new Uint8Array(0);
+            var running = 0;
+            var write_index = 0;
+            console.time('download');
+            for (let i = 0; i < meta.parts; i++) {
+                running++;
+                const ii = Number(i); // recast
+                setTimeout(async () => {
+                    const d = await client.getFilePart(fileHash, i);
+                    console.log('part', i + 1, 'hash ok:', (await DFNHelperFunctions.hash(d)) == meta.part_hashes[i]); // check hash
+                    while (write_index != ii) await new Promise(r => setTimeout(r, 10));
+                    data = DFNHelperFunctions.concatBuffers([data, d]);
+                    document.getElementById('status').innerHTML = `Downloaded part ${write_index + 1}/${meta.parts}...`;
+                    write_index++;
+                    running--;
+                }, 0);
+                while (running >= 5) await new Promise(r => setTimeout(r, 10)); // Limit to 5 concurrent requests to the peer
+            }
+            while (running > 0) await new Promise(r => setTimeout(r, 10));
+            console.timeEnd('download');
+            document.getElementById('status').innerHTML = 'Done!';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('video').src = URL.createObjectURL(new Blob([data]));
+            document.getElementById('video').style.display = 'block';
+            document.getElementById('video').play();
+        }
+    </script>
+</body>
+
+</html>
