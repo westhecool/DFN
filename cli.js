@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 Bytes'
 
