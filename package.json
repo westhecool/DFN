@@ -8,7 +8,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "bin": "cli.js",
+  "bin": {
+    "dfn": "./cli.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
