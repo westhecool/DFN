@@ -178,6 +178,7 @@
             this.ws.send(JSON.stringify({ event: 'announce-files', hostname: this.hostname, files }));
         }
         close() {
+            clearInterval(this.pingInterval);
             this.ws.close();
         }
     }

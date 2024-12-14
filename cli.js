@@ -60,6 +60,7 @@ function formatBytes(bytes, decimals = 2) {
         }
         while (running > 0) await new Promise(r => setTimeout(r, 10));
         out.close();
+        tracker.close();
         process.stdout.write(`\r\x1b[KDownload complete in ${((Date.now() - start) / 1000).toFixed(0)}s (${formatBytes(((write_index + 1) * partSize) / ((Date.now() - start) / 1000))}/s)\n`);
     } else if (process.argv[2] == 'serve') {
         var files = process.argv.slice(3).map((f) => path.resolve(f));
@@ -71,28 +72,14 @@ function formatBytes(bytes, decimals = 2) {
                 }
             }).filter((f) => f); // remove empty strings
         }
-        const fileObjects = {};
+        // pre-check
         for (const file of files) {
             if (!fs.existsSync(file)) {
                 console.error(`File "${file}" does not exist.`);
                 process.exit(1);
             }
-            const fileSize = fs.statSync(file).size;
-            const fileHash = await hashFile(file, (progress) => {
-                process.stdout.write(`\r\x1b[KHashing file "${file}"... ${progress}%`);
-            });
-            fileObjects[fileHash.hash] = {
-                name: path.basename(file),
-                path: file,
-                size: fs.statSync(file).size,
-                hash: fileHash.hash,
-                progress: fileHash.parts.map((p) => 1), // an array of ether 1 or 0 for each part
-                parts: Math.ceil(fileSize / partSize),
-                part_hashes: fileHash.parts,
-                fd: await fs.promises.open(file, 'r')
-            };
         }
-        await new Promise(r => setTimeout(r, 100)); // (wait for stdout to flush)
+        const fileObjects = {};
         process.stdout.write(`\r\x1b[KStarting server...`);
         const server = new Server();
         server.on('file-meta-request', (fileHash, cb, error) => {
@@ -128,7 +115,30 @@ function formatBytes(bytes, decimals = 2) {
             await fileObjects[fileHash].fd.read(buffer, 0, readSize, offset);
             cb(buffer);
         });
-        await server.start();
+        var serverStarted = false;
+        setImmediate(() => server.start().then(() => serverStarted = true)); // start the server in the background
+        for (const file of files) {
+            const fileSize = fs.statSync(file).size;
+            const fileHash = await hashFile(file, (progress) => {
+                process.stdout.write(`\r\x1b[KHashing file "${file}"... ${progress}%`);
+            });
+            fileObjects[fileHash.hash] = {
+                name: path.basename(file),
+                path: file,
+                size: fs.statSync(file).size,
+                hash: fileHash.hash,
+                progress: fileHash.parts.map((p) => 1), // an array of ether 1 or 0 for each part
+                parts: Math.ceil(fileSize / partSize),
+                part_hashes: fileHash.parts,
+                fd: await fs.promises.open(file, 'r')
+            };
+        }
+        await new Promise(r => setTimeout(r, 100)); // stdout flush bug
+        process.stdout.write(`\r\x1b[KWaiting for server to start...`);
+        while (!serverStarted) {
+            await new Promise(r => setTimeout(r, 100));
+        }
+        process.stdout.write(`\r\x1b[KAnnouncing files...`);
         const tracker = new Tracker('https://dfn-tracker.westhedev.xyz', server.hostname);
         await tracker.announceFiles(Object.keys(fileObjects));
         for (const fileHash of Object.keys(fileObjects)) {
