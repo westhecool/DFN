@@ -167,7 +167,6 @@
         async lookForPeers(files) {
             if (!Array.isArray(files)) throw new Error('Files must be an array.');
             while (this.ws.readyState === 0) await new Promise(resolve => setTimeout(resolve, 100));
-            console.log(this.ws.readyState);
             if (this.ws.readyState !== 1) throw new Error('WebSocket is not open.');
             this.ws.send(JSON.stringify({ event: 'find-peers', files }));
         }
@@ -387,7 +386,7 @@
                 super();
                 this.listenPort = null;
                 this.hostname = null;
-                this._cloudflared = new Cloudflared();
+                this._cloudflared = null;
                 this.httpServer = http.createServer();
                 this._corsHeaders = {
                     'Access-Control-Allow-Origin': '*',
@@ -462,14 +461,17 @@
                 c.writeUInt32BE(message, 0);
                 res.end(Buffer.concat([c, data]));
             }
-            async start() {
+            async start(noTunnel = false) {
                 this.httpServer.listen(0);
                 this.listenPort = this.httpServer.address().port;
-                this.hostname = await this._cloudflared.run(this.listenPort);
-                await new Promise(r => setTimeout(r, 5000)); // Hardcoded delay to wait for cloudflare's servers to set up dns
+                if (!noTunnel) {
+                    this._cloudflared = new Cloudflared();
+                    this.hostname = await this._cloudflared.run(this.listenPort);
+                    await new Promise(r => setTimeout(r, 5000)); // Hardcoded delay to wait for cloudflare's servers to set up dns
+                }
             }
             stop() {
-                this._cloudflared.kill();
+                if (this._cloudflared) this._cloudflared.kill();
                 this.httpServer.close();
             }
         }
