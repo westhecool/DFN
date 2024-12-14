@@ -16,6 +16,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "undici": "^6.21.0"
+    "undici": "^6.21.0",
+    "ws": "^8.18.0",
+    "yargs": "^17.7.2"
   }
 }

@@ -22,13 +22,19 @@ function formatBytes(bytes, decimals = 2) {
             process.exit(1);
         }
         const tracker = new Tracker('https://dfn-tracker.westhedev.xyz');
-        const peers = (await tracker.findPeers([fileHash]))[fileHash];
-        if (!peers[0]) {
-            throw new Error('No peers found for this file.');
+        var peer = null;
+        tracker.setPeerListener((fileHash2, peer2) => {
+            if (peer) return; // We already have a peer
+            if (fileHash2 != fileHash) return; // Wrong file
+            peer = peer2; // Ideally we would have connections to multiple peers or at least use a random one
+        });
+        await tracker.lookForPeers([fileHash]); // Tell tracker to look for peers for this file
+        process.stdout.write(`\r\x1b[KLooking for peers...`);
+        while (!peer) {
+            await new Promise(r => setTimeout(r, 100));
         }
-        // Ideally we would have connections to multiple peers or at least use a random one
-        console.log(`Found peer: ${peers[0]}`);
-        const client = new Client(`https://${peers[0]}`);
+        console.log(`\r\x1b[KFound peer: ${peer}`);
+        const client = new Client(`https://${peer}`);
         const meta = await client.getFileMetadata(fileHash);
         console.log(`File info: name: ${meta.name}, size: ${formatBytes(meta.size)}, parts: ${meta.parts}`);
         const out = fs.createWriteStream(process.argv[4] || meta.name);
@@ -86,6 +92,7 @@ function formatBytes(bytes, decimals = 2) {
                 fd: await fs.promises.open(file, 'r')
             };
         }
+        await new Promise(r => setTimeout(r, 100)); // (wait for stdout to flush)
         process.stdout.write(`\r\x1b[KStarting server...`);
         const server = new Server();
         server.on('file-meta-request', (fileHash, cb, error) => {
@@ -122,7 +129,7 @@ function formatBytes(bytes, decimals = 2) {
             cb(buffer);
         });
         await server.start();
-        const tracker = new Tracker("https://dfn-tracker.westhedev.xyz", server.hostname);
+        const tracker = new Tracker('https://dfn-tracker.westhedev.xyz', server.hostname);
         await tracker.announceFiles(Object.keys(fileObjects));
         for (const fileHash of Object.keys(fileObjects)) {
             console.log(`\r\x1b[KServing file "${fileObjects[fileHash].path}" hash: ${fileHash}`);

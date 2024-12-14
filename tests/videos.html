@@ -2,6 +2,22 @@
 
 <head>
     <script src="../index.js"></script>
+    <script>
+        var mimeMap = {};
+        (async () => {
+            const r = await fetch('https://cdn.jsdelivr.net/npm/mime-db/db.json');
+            const json = await r.json();
+            for (const [k, v] of Object.entries(json)) {
+                if (!v.extensions) continue;
+                for (const ext of v.extensions) {
+                    mimeMap[ext] = {
+                        type: k,
+                        ...v
+                    };
+                }
+            }
+        })();
+    </script>
 </head>
 
 <body style="margin: 0; padding: 0; background-color: black; color: white; display: flex; justify-content: center;">
@@ -64,14 +80,20 @@
             document.getElementById('videos').style.display = 'none';
             document.getElementById('status').style.display = 'block';
             const tracker = new DFNTracker('https://dfn-tracker.westhedev.xyz');
-            const peers = (await tracker.findPeers([fileHash]))[fileHash];
-            if (!peers[0]) {
-                alert('No peers found for this file.');
-                return;
+            var peer = null;
+            tracker.setPeerListener((fileHash2, peer2) => {
+                if (peer) return; // We already have a peer
+                if (fileHash2 != fileHash) return; // Wrong file
+                peer = peer2; // Ideally we would have connections to multiple peers or at least use a random one
+            });
+            await tracker.lookForPeers([fileHash]); // Tell tracker to look for peers for this file
+            document.getElementById('status').innerHTML = 'Looking for peers...';
+            while (!peer) {
+                await new Promise(r => setTimeout(r, 100));
             }
-            // Ideally we would have connections to multiple peers or at least use a random one
-            console.log(`Found peer: ${peers[0]}`);
-            const client = new DFNClient(`https://${peers[0]}`);
+            console.log(`Found peer: ${peer}`);
+            document.getElementById('status').innerHTML = 'Downloading video...';
+            const client = new DFNClient(`https://${peer}`);
             const meta = await client.getFileMetadata(fileHash);
             console.log(meta);
             var data = new Uint8Array(0);

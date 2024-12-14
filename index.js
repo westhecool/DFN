@@ -136,74 +136,50 @@
             return { statusCode: response.status, headers: response.headers, body };
         }
     }
+    var _WebSocket;
+    if (isBrowser) {
+        _WebSocket = WebSocket;
+    } else {
+        _WebSocket = require('ws').WebSocket;
+    }
     class DFNTracker {
         constructor(trackerUrl, serverHostname = null) {
             this.hostname = serverHostname;
             this.url = trackerUrl;
-            this.pingInterval = null;
-        }
-        async findPeers(files) {
-            if (!Array.isArray(files)) throw new Error('Files must be an array.');
-            const response = await fetch(this.url + '/find-peers', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(files)
+            this.onpeer = null;
+            this.ws = new _WebSocket(trackerUrl);
+            this.ws.addEventListener("message", (event) => {
+                const message = JSON.parse(event.data);
+                if (message.event === 'peer') this.onpeer(message.fileHash, message.peer);
             });
-            const data = await response.json();
-            if (response.status !== 200) {
-                throw new Error('Failed to find peers: ' + data.error);
-            }
-            return data;
+            this.pingInterval = setInterval(async () => {
+                while (this.ws.readyState === 0) await new Promise(resolve => setTimeout(resolve, 100));
+                if (this.ws.readyState !== 1) {
+                    clearInterval(this.pingInterval);
+                    return;
+                }
+                this.ws.send(JSON.stringify({ event: 'ping' }));
+            }, 30000); // 30 seconds
+        }
+        setPeerListener(peerListener) {
+            this.onpeer = peerListener;
+        }
+        async lookForPeers(files) {
+            if (!Array.isArray(files)) throw new Error('Files must be an array.');
+            while (this.ws.readyState === 0) await new Promise(resolve => setTimeout(resolve, 100));
+            console.log(this.ws.readyState);
+            if (this.ws.readyState !== 1) throw new Error('WebSocket is not open.');
+            this.ws.send(JSON.stringify({ event: 'find-peers', files }));
         }
         async announceFiles(files) {
             if (!this.hostname) throw new Error('Hostname is not set.');
             if (!Array.isArray(files)) throw new Error('Files must be an array.');
-            const response = await fetch(this.url + '/announce-files', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ hostname: this.hostname, files })
-            });
-            const data = await response.json();
-            if (response.status !== 200) {
-                throw new Error('Failed to announce files: ' + data.error);
-            }
-            if (!this.pingInterval) this.pingInterval = setInterval(async () => await this.ping(), 20000); // ping the tracker every 20 seconds to let it know we are still seeding
-            return data;
+            while (this.ws.readyState === 0) await new Promise(resolve => setTimeout(resolve, 100));
+            if (this.ws.readyState !== 1) throw new Error('WebSocket is not open.');
+            this.ws.send(JSON.stringify({ event: 'announce-files', hostname: this.hostname, files }));
         }
-        async ping() {
-            if (!this.hostname) throw new Error('Hostname is not set.');
-            const response = await fetch(this.url + '/ping', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ hostname: this.hostname })
-            });
-            const data = await response.json();
-            if (response.status !== 200) {
-                throw new Error('Failed to ping: ' + data.error);
-            }
-            return data;
-        }
-        async disconnect() {
-            if (!this.hostname) throw new Error('Hostname is not set.');
-            if (this.pingInterval) clearInterval(this.pingInterval);
-            const response = await fetch(this.url + '/disconnect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ hostname: this.hostname })
-            });
-            const data = await response.json();
-            if (response.status !== 200) {
-                throw new Error('Failed to announce disconnect: ' + data.error);
-            }
-            return data;
+        close() {
+            this.ws.close();
         }
     }
     class DFNClient {
@@ -286,7 +262,6 @@
         const CP = require('child_process');
         const { createHash } = require('crypto');
         async function hashFile(file, progress = null) {
-            if (isBrowser) throw new Error('hashFile is not currently not supported in the browser.');
             return new Promise(async (resolve, reject) => {
                 var parts = [];
                 const fullHash = createHash('sha256');
@@ -491,6 +466,7 @@
                 this.httpServer.listen(0);
                 this.listenPort = this.httpServer.address().port;
                 this.hostname = await this._cloudflared.run(this.listenPort);
+                await new Promise(r => setTimeout(r, 5000)); // Hardcoded delay to wait for cloudflare's servers to set up dns
             }
             stop() {
                 this._cloudflared.kill();
