@@ -1,6 +1,13 @@
 # DFN (DistributedFileNetwork)
 
-A simple distributed file network over http/ws using cloudflare tunnels.
+A simple distributed file network over http/ws using cloudflare tunnels that is
+- peer to peer
+- end to end encrypted
+- anonymous*
+- fast
+- can run a browser (downloading only)
+
+\* seeding is almost completely anonymous but there are possible ways your ip address could be exposed when downloading
 
 ## todo before first release
 
