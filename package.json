@@ -1,23 +1,14 @@
 {
-  "name": "distributedfilenetwork",
-  "version": "0.0.1-alpha.0",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "name": "dfnjs",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "lib/index.js",
   "bin": {
-    "dfn": "./cli.js"
+    "dfn": "lib/cli.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "undici": "^6.21.0",
-    "ws": "^8.18.0",
+    "cli-table3": "^0.6.5",
+    "ws": "^8.18.2",
     "yargs": "^17.7.2"
   }
 }
